@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import savgol_filter
 from scipy.ndimage import gaussian_filter1d
@@ -28,8 +29,16 @@ def hough_line_detect(video_path, output_path):
     # rectangle for 01(test).mp4/03_test.mp4/05_test.mp4: (150, 0), (810, 400) VERT
     # rectangle for 03.mp4/07_test.mp4: (100, 0), (950, 700) HORIZ (True False)
     # rectangle for 02.mp4: (0, 600), (959, 959) RIGHT (False True)
+    X1 = 1
     X1 = 0
     Y1 = 0
+    X2 = 959
+    Y2 = 370
+    if abs(Y2 - Y1) < abs(X2 - X1):
+        VERTICAL = True
+    else:
+        VERTICAL = False
+        
     X2 = 959
     Y2 = 448
     VERTICAL = True
@@ -53,21 +62,67 @@ def hough_line_detect(video_path, output_path):
     y1s = []
     y2s = []
 
+    fisheye_detect = False
+    epsilon = 5
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
-            break
-        # resize the frame to 1280x960
+            break   
+        
+        # resize the frame to 960x960
         frame = cv2.resize(frame, (WIDTH, HEIGHT))
+        if frame_num == 0:
+            # check if all the corners of frame is black
+            # if frame[0, 0][0] == 0 and frame[0, 0][1] == 0 and frame[0, 0][2] == 0 and frame[0, 959][0] == 0 and frame[0, 959][1] == 0 and frame[0, 959][2] == 0 and frame[959, 0][0] == 0 and frame[959, 0][1] == 0 and frame[959, 0][2] == 0 and frame[959, 959][0] == 0 and frame[959, 959][1] == 0 and frame[959, 959][2] == 0:
+                
+            # fisheye_detect = True    
+            if fisheye_detect:
+                if not VERTICAL:
+                    if Y2 > 900:
+                        Y2 = 800
+                    if Y1 < 60:
+                        Y1 = 160
+                else:
+                    if X2 > 900:
+                        X2 = 800
+                    if X1 < 60:
+                        X1 = 160  
+                LX1 = X1
+                LY1 = int((Y1 + Y2) / 2)
+                LX2 = X2
+                LY2 = int((Y1 + Y2) / 2)
+                if VERTICAL:
+                    LX1 = int((X1 + X2) / 2)
+                    LY1 = Y1
+                    LX2 = int((X1 + X2) / 2)
+                    LY2 = Y2
+                if RIGHT:
+                    LX1 = X2
+                    LY1 = Y1
+                    LX2 = X2
+                    LY2 = Y2   
+                       
+                
         frame_num += 1
         # Convert frame to grayscale
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        
+        # 從原始圖像中剪裁出邊界框
+        bbox_img = gray[Y1:Y2, X1:X2]
+        
+        # 對邊界框內的圖像進行直方圖均衡化
+        equalized_bbox = cv2.equalizeHist(bbox_img)
+
+        # 將均衡化後的圖像放回原始圖像的相應位置
+        gray[Y1:Y2, X1:X2] = equalized_bbox
+        
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         # blurred = gray
 
         edge = cv2.Canny(blurred, 100, 150, apertureSize=3)
-        lines = cv2.HoughLinesP(edge, 1, np.pi / 180, threshold=200, minLineLength=100, maxLineGap=10)
-
+        # lines = cv2.HoughLinesP(edge, 1, np.pi / 180, threshold=200, minLineLength=100, maxLineGap=10)
+        lines = cv2.HoughLinesP(edge, 1, np.pi / 180, threshold=200, minLineLength=min(abs(Y1-Y2), abs(X1-X2))/5, maxLineGap=min(abs(Y1-Y2), abs(X1-X2))/50)
+        
         if lines is None:
             continue
         cur_x1s = []
@@ -82,7 +137,8 @@ def hough_line_detect(video_path, output_path):
             if x1!=x2 and y1!=y2:
                 cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 # Check if the line is within the rectangle
-                if x1 >= X1 and x1 <= X2 and y1 >= Y1 and y1 <= Y2 and x2 >= X1 and x2 <= X2 and y2 >= Y1 and y2 <= Y2:
+                if x1 >= X1 and x1 <= X2 and y1 >= Y1 and y1 <= Y2 and x2 >= X1 and x2 <= X2 and y2 >= Y1 and y2 <= Y2 and 160 > abs(math.atan2(y1 - y2, x1 - x2))*180/math.pi > 20:
+                # if x1 >= X1 and x1 <= X2 and y1 >= Y1 and y1 <= Y2 and x2 >= X1 and x2 <= X2 and y2 >= Y1 and y2 <= Y2 and (180 > abs(math.atan2(y1 - y2, x1 - x2))*180/math.pi > 110 or 70 > abs(math.atan2(y1 - y2, x1 - x2))*180/math.pi > 0):
                     cur_x1s.append(x1)
                     cur_x2s.append(x2)
                     cur_y1s.append(y1)
@@ -144,6 +200,61 @@ def hough_line_detect(video_path, output_path):
     s, e = 0, 0
     s_valid, e_valid = 0, 0
 
+    first_start_open = 0
+
+    for i in range(len(distances)):
+        if distances[i] > m and not rec:
+            rec = True
+            if s != 0 and i - e < len(distances) / 20:
+                continue
+            if s != 0 and i - e < len(distances) / 20:
+                continue
+            s = i
+        if distances[i] < m and rec:
+            rec = False
+            e = i
+            if e - s > len(distances) / 8:
+                s_valid, e_valid = s, e            
+
+                start_open, end_open = 0,0
+                for i in range(s_valid, e_valid):
+                    if distances[i] > distances[i + 1]:
+                        end_open = i
+                        break
+                for i in range(s_valid - 1, 0, -1):
+                    if distances[i] < distances[i - 1]:
+                        if not first_start_open:
+                            first_start_open = i
+                        start_open = i
+                        break
+                
+                print("start_open:", start_open, "end_open:", end_open)
+
+                start_close, end_close = 0,0
+                for i in range(e_valid, len(distances)):
+                    if i == len(distances) - 1:
+                        end_close = i
+                        break
+                    if distances[i] < distances[i + 1]:
+                        end_close = i
+                        break
+                for i in range(e_valid, 0, -1):
+                    if distances[i] > distances[i - 1]:
+                        start_close = i
+                        break
+                
+                print("start_close:",start_close, "end_close:", end_close)
+    
+    close_state_avg = np.mean(np.append(distances[:first_start_open], distances[end_close:]))
+    open_state_avg = np.mean(distances[end_open:start_close])
+    print("close state avg:", close_state_avg)
+    print("open state avg:", open_state_avg)
+    
+    m = (close_state_avg + open_state_avg) / 2
+    rec = False
+    s, e = 0, 0
+    s_valid, e_valid = 0, 0
+
     for i in range(len(distances)):
         if distances[i] > m and not rec:
             rec = True
@@ -153,32 +264,39 @@ def hough_line_detect(video_path, output_path):
         if distances[i] < m and rec:
             rec = False
             e = i
-            if e - s > e_valid - s_valid:
+            if e - s > len(distances) / 8:
                 s_valid, e_valid = s, e            
 
-    start_open, end_open = 0,0
-    for i in range(s_valid, e_valid):
-        if distances[i] > distances[i + 1]:
-            end_open = i
-            break
-    for i in range(s_valid - 1, 0, -1):
-        if distances[i] < distances[i - 1]:
-            start_open = i
-            break
-    
-    print(start_open, end_open)
+                start_open, end_open = 0,0
+                for i in range(s_valid, e_valid):
+                    if distances[i] > distances[i + 1]:
+                        end_open = i
+                        break
+                for i in range(s_valid - 1, 0, -1):
+                    # if distances[i] < distances[i - 1]:
+                    if distances[i] < distances[i - 1] or abs(distances[i] - close_state_avg) < epsilon: 
+                        start_open = i
+                        break
+                guess_open = (start_open*7 + end_open) / 8
+                print("start_open:", start_open, "end_open:", end_open, "guess_open:", guess_open)
 
-    start_close, end_close = 0,0
-    for i in range(e_valid, len(distances)):
-        if distances[i] < distances[i + 1]:
-            end_close = i
-            break
-    for i in range(e_valid, 0, -1):
-        if distances[i] > distances[i - 1]:
-            start_close = i
-            break
+                start_close, end_close = 0,0
+                for i in range(e_valid, len(distances)):
+                    if i == len(distances) - 1:
+                        end_close = i
+                        break
+                    if distances[i] < distances[i + 1] or abs(distances[i] - close_state_avg) < epsilon:
+                    # if distances[i] < distances[i + 1]:
+                        end_close = i
+                        break
+                for i in range(e_valid, 0, -1):
+                    if distances[i] > distances[i - 1]:
+                        start_close = i
+                        break
+                guess_close = (start_close + end_close*3) / 4
+                print("start_close:",start_close, "end_close:", end_close, "guess_close:", guess_close)
     
-    print(start_close, end_close)
+    print(len(distances))
 
     # ax.plot(time, x1s, label='avg_x1')
     # ax.plot(time, x2s, label='avg_x2')
@@ -190,11 +308,28 @@ def hough_line_detect(video_path, output_path):
 
     # for t in key_timesteps:
     #     plt.axvline(x=t, color='black', linestyle='--', alpha=0.7)
-
+    plt.axvline(x=87, color='black', linestyle='--', alpha=0.7)
+    plt.axvline(x=87 + len(distances) / 2, color='black', linestyle='--', alpha=0.7)
+    # plt.axvline(x=1395, color='black', linestyle='--', alpha=0.7)
+    # plt.axvline(x=1363, color='black', linestyle='--', alpha=0.7)
+    plt.axvline(x=184, color='black', linestyle='--', alpha=0.7)
+    plt.axvline(x=184 + len(distances) / 2, color='black', linestyle='--', alpha=0.7)
+    # plt.axvline(x=2245, color='black', linestyle='--', alpha=0.7)
+    # plt.axvline(x=2184, color='black', linestyle='--', alpha=0.7)
+    
+    plt.axvline(x=start_open, color='red', linestyle='--', alpha=0.7)
+    plt.axvline(x=end_open, color='red', linestyle='--', alpha=0.7)
+    plt.axvline(x=guess_open, color='red', linestyle='--', alpha=0.7)
+    plt.axvline(x=start_close, color='red', linestyle='--', alpha=0.7)
+    plt.axvline(x=end_close, color='red', linestyle='--', alpha=0.7)
+    plt.axvline(x=guess_close, color='red', linestyle='--', alpha=0.7)
+    plt.axhline(y=m, color='blue', linestyle='--', alpha=0.7)
+    plt.axhline(y=close_state_avg, color='blue', linestyle='--', alpha=0.7)
+    plt.axhline(y=open_state_avg, color='blue', linestyle='--', alpha=0.7)
     ax.legend()
     plt.show()
     # save the line chart to a file
-    fig.savefig('line_chart.png')
+    fig.savefig('line_chart_test02.png')
 
 def ema(data, alpha=0.3):
     ema_data = np.zeros_like(data)
@@ -220,12 +355,9 @@ def find_key_timesteps(*trends):
     return key_timesteps
 
 
-
-
-
-
 # Replace 'your_video.mp4' with the path to your input video file
 # Replace 'output_video.avi' with the desired path for your output video file
 # mark_straight_edges('01.mp4', '01_straight_edges_2.mp4')
+hough_line_detect('./Tests/02.mov', './Tests/02_hough_line.mov')
 hough_line_detect('./Tests/03.mp4', './Tests/03_hough_line.mp4')
 
