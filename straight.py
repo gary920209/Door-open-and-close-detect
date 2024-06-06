@@ -28,10 +28,10 @@ def hough_line_detect(video_path, output_path):
     # rectangle for 01(test).mp4/03_test.mp4/05_test.mp4: (150, 0), (810, 400) VERT
     # rectangle for 03.mp4/07_test.mp4: (100, 0), (950, 700) HORIZ (True False)
     # rectangle for 02.mp4: (0, 600), (959, 959) RIGHT (False True)
-    X1 = 100
+    X1 = 0
     Y1 = 0
-    X2 = 950
-    Y2 = 700
+    X2 = 959
+    Y2 = 448
     VERTICAL = True
     RIGHT = False
     LX1 = X1
@@ -147,6 +147,8 @@ def hough_line_detect(video_path, output_path):
     for i in range(len(distances)):
         if distances[i] > m and not rec:
             rec = True
+            if s != 0 and i - e < len(distances) / 20:
+                continue
             s = i
         if distances[i] < m and rec:
             rec = False
@@ -225,5 +227,5 @@ def find_key_timesteps(*trends):
 # Replace 'your_video.mp4' with the path to your input video file
 # Replace 'output_video.avi' with the desired path for your output video file
 # mark_straight_edges('01.mp4', '01_straight_edges_2.mp4')
-hough_line_detect('03.mp4', '03_hough_line.mp4')
+hough_line_detect('./Tests/03.mp4', './Tests/03_hough_line.mp4')
 
