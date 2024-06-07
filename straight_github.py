@@ -2,11 +2,12 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import json
 from scipy.ndimage import uniform_filter1d
 from scipy.signal import savgol_filter
 from scipy.ndimage import gaussian_filter1d
 
-def hough_line_detect(video_path, output_path):
+def hough_line_detect(video_path, output_path, X1, Y1, X2, Y2,fisheye_detect):
     # Open the video file
     cap = cv2.VideoCapture(video_path)
     
@@ -29,10 +30,6 @@ def hough_line_detect(video_path, output_path):
     # rectangle for 01(test).mp4/03_test.mp4/05_test.mp4: (150, 0), (810, 400) VERT
     # rectangle for 03.mp4/07_test.mp4: (100, 0), (950, 700) HORIZ (True False)
     # rectangle for 02.mp4: (0, 600), (959, 959) RIGHT (False True)
-    X1 = 1
-    Y1 = 0
-    X2 = 959
-    Y2 = 370
     if abs(Y2 - Y1) < abs(X2 - X1):
         VERTICAL = True
     else:
@@ -58,7 +55,6 @@ def hough_line_detect(video_path, output_path):
     y1s = []
     y2s = []
 
-    fisheye_detect = False
     epsilon = 5
     while cap.isOpened():
         ret, frame = cap.read()
@@ -250,7 +246,8 @@ def hough_line_detect(video_path, output_path):
     s_valid, e_valid = 0, 0
 
     g = np.gradient(distances)
-
+    events = []
+    ID = 0
     for i in range(len(distances)):
         if distances[i] > m and not rec:
             rec = True
@@ -280,7 +277,12 @@ def hough_line_detect(video_path, output_path):
                     start_open -= 1
 
                 guess_open = (start_open*7 + end_open) / 8 - 0.76
-                print("start_open:", start_open, "end_open:", end_open, "guess_open:", guess_open)
+                ID += 1
+                events.append({
+                    "state_id": ID,
+                    "description": "Opening",
+                    "guessed_frame": int(guess_open)
+                })
 
                 start_close, end_close = 0,0
                 for j in range(e_valid, len(distances)):
@@ -301,38 +303,13 @@ def hough_line_detect(video_path, output_path):
                 while(g[end_close] < -3):
                     end_close += 1
                 guess_close = (start_close + end_close*3) / 4
-                print("start_close:",start_close, "end_close:", end_close, "guess_close:", guess_close)
-
-    # ax.plot(time, x1s, label='avg_x1')
-    # ax.plot(time, x2s, label='avg_x2')
-    # ax.plot(time, y1s, label='avg_y1')
-    # ax.plot(time, y2s, label='avg_y2')
-    # ax.plot(time, distances, label='distances')
-    ax.plot(distances, label='distances')
-
-
-    # for t in key_timesteps:
-    #     plt.axvline(x=t, color='black', linestyle='--', alpha=0.7)
-    plt.axvline(x=103, color='black', linestyle='--', alpha=0.7)
-    # plt.axvline(x=1395, color='black', linestyle='--', alpha=0.7)
-    # plt.axvline(x=1363, color='black', linestyle='--', alpha=0.7)
-    plt.axvline(x=358, color='black', linestyle='--', alpha=0.7)
-    # plt.axvline(x=2245, color='black', linestyle='--', alpha=0.7)
-    # plt.axvline(x=2184, color='black', linestyle='--', alpha=0.7)
-    
-    plt.axvline(x=start_open, color='red', linestyle='--', alpha=0.7)
-    plt.axvline(x=end_open, color='red', linestyle='--', alpha=0.7)
-    plt.axvline(x=guess_open, color='red', linestyle='--', alpha=0.7)
-    plt.axvline(x=start_close, color='red', linestyle='--', alpha=0.7)
-    plt.axvline(x=end_close, color='red', linestyle='--', alpha=0.7)
-    plt.axvline(x=guess_close, color='red', linestyle='--', alpha=0.7)
-    plt.axhline(y=m, color='blue', linestyle='--', alpha=0.7)
-    plt.axhline(y=close_state_avg, color='blue', linestyle='--', alpha=0.7)
-    plt.axhline(y=open_state_avg, color='blue', linestyle='--', alpha=0.7)
-    ax.legend()
-    plt.show()
-    # save the line chart to a file
-    fig.savefig('line_chart_test01.png')
+                ID += 1
+                events.append({
+                    "state_id": ID,
+                    "description": "Closing",
+                    "guessed_frame": int(guess_close)
+                })
+    return events
 
 def ema(data, alpha=0.3):
     ema_data = np.zeros_like(data)
@@ -357,8 +334,37 @@ def find_key_timesteps(*trends):
     key_timesteps = unique[counts >= 2]
     return key_timesteps
 
+def process_videos(video_list):
+    video_annotations = []
+    for video_info in video_list:
+        video_filename = video_info["video_filename"]
+        x1, y1, x2, y2,fisheye_detect  = video_info["bbox"]
+        annotations = hough_line_detect("./Tests/"+video_filename,"output.mp4", x1, y1, x2, y2, fisheye_detect)
+        video_annotations.append({
+            "video_filename": video_filename,
+            "annotations": [
+                {
+                    "object": "Door",
+                    "states": annotations
+                }
+            ]
+        })
+    return video_annotations
 
-# Replace 'your_video.mp4' with the path to your input video file
-# Replace 'output_video.avi' with the desired path for your output video file
-# mark_straight_edges('01.mp4', '01_straight_edges_2.mp4')
-hough_line_detect('./Tests/01.mp4', './Tests/01_hough_line.mp4')
+# fill in the video filenames and bounding boxes
+videos = [
+    {"video_filename": "01.mp4", "bbox": (1, 0, 959, 370, False)},
+    {"video_filename": "03.mp4", "bbox": (0, 0, 957, 407, False)},
+    {"video_filename": "05.mp4", "bbox": (0, 0, 957, 407, False)},
+    {"video_filename": "07.mp4", "bbox": (0, 0, 959, 445, False)},
+    {"video_filename": "09.mp4", "bbox": (2, 345, 293, 960, True)}
+    # {"video_filename": "02.mov", "bbox": (0, 0, 959, 445, False)}
+
+]
+
+video_annotations = process_videos(videos)
+
+json_result = {"videos": video_annotations}
+with open("output.json", "w") as json_file:
+    json.dump(json_result, json_file, indent=4)
+
