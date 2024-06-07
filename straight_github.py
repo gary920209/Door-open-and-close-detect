@@ -276,7 +276,8 @@ def hough_line_detect(video_path, output_path, X1, Y1, X2, Y2,fisheye_detect):
                 while (g[start_open] > 3):
                     start_open -= 1
 
-                guess_open = (start_open*7 + end_open) / 8 - 0.76
+                guess_open = (start_open*7 + end_open) / 8 - 2
+                print("guess_open:", guess_open)
                 ID += 1
                 events.append({
                     "state_id": ID,
