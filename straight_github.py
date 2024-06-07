@@ -7,7 +7,7 @@ from scipy.ndimage import uniform_filter1d
 from scipy.signal import savgol_filter
 from scipy.ndimage import gaussian_filter1d
 
-def hough_line_detect(video_path, output_path, X1, Y1, X2, Y2,fisheye_detect):
+def hough_line_detect(video_path, output_path, X1, Y1, X2, Y2, fisheye_detect):
     # Open the video file
     cap = cv2.VideoCapture(video_path)
     
@@ -66,8 +66,9 @@ def hough_line_detect(video_path, output_path, X1, Y1, X2, Y2,fisheye_detect):
         if frame_num == 0:
             # check if all the corners of frame is black
             # if frame[0, 0][0] == 0 and frame[0, 0][1] == 0 and frame[0, 0][2] == 0 and frame[0, 959][0] == 0 and frame[0, 959][1] == 0 and frame[0, 959][2] == 0 and frame[959, 0][0] == 0 and frame[959, 0][1] == 0 and frame[959, 0][2] == 0 and frame[959, 959][0] == 0 and frame[959, 959][1] == 0 and frame[959, 959][2] == 0:
-                
-            # fisheye_detect = True    
+            if np.count_nonzero(frame[0:10,HEIGHT-10:,:] < 5) > 270 and np.count_nonzero(frame[WIDTH-10:,0:10,:]) > 270:
+                fisheye_detect = True    
+                print(video_path, "is fisheye")
             if fisheye_detect:
                 if not VERTICAL:
                     if Y2 > 900:
@@ -193,7 +194,8 @@ def hough_line_detect(video_path, output_path, X1, Y1, X2, Y2,fisheye_detect):
     s_valid, e_valid = 0, 0
 
     first_start_open = 0
-
+    start_open, end_open = 0,0
+    start_close, end_close = 0,0
     for i in range(len(distances)):
         if distances[i] > m and not rec:
             rec = True
@@ -220,7 +222,6 @@ def hough_line_detect(video_path, output_path, X1, Y1, X2, Y2,fisheye_detect):
                 
                 print("start_open:", start_open, "end_open:", end_open)
 
-                start_close, end_close = 0,0
                 for j in range(e_valid, len(distances)):
                     if j == len(distances) - 1:
                         end_close = j
@@ -260,7 +261,7 @@ def hough_line_detect(video_path, output_path, X1, Y1, X2, Y2,fisheye_detect):
             if e - s > len(distances) / 8:
                 s_valid, e_valid = s, e            
 
-                start_open, end_open = 0,0
+                
                 for j in range(s_valid, e_valid):
                     if distances[j] > distances[j + 1]:
                         end_open = j
@@ -285,7 +286,7 @@ def hough_line_detect(video_path, output_path, X1, Y1, X2, Y2,fisheye_detect):
                     "guessed_frame": int(guess_open)
                 })
 
-                start_close, end_close = 0,0
+                
                 for j in range(e_valid, len(distances)):
                     if j == len(distances) - 1:
                         end_close = j
