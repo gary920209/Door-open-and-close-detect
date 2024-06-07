@@ -60,13 +60,14 @@ def hough_line_detect(video_path, output_path, X1, Y1, X2, Y2, fisheye_detect):
         ret, frame = cap.read()
         if not ret:
             break   
-        
         # resize the frame to 960x960
         frame = cv2.resize(frame, (WIDTH, HEIGHT))
         if frame_num == 0:
             # check if all the corners of frame is black
             # if frame[0, 0][0] == 0 and frame[0, 0][1] == 0 and frame[0, 0][2] == 0 and frame[0, 959][0] == 0 and frame[0, 959][1] == 0 and frame[0, 959][2] == 0 and frame[959, 0][0] == 0 and frame[959, 0][1] == 0 and frame[959, 0][2] == 0 and frame[959, 959][0] == 0 and frame[959, 959][1] == 0 and frame[959, 959][2] == 0:
-            if np.count_nonzero(frame[0:10,HEIGHT-10:,:] < 5) > 270 and np.count_nonzero(frame[WIDTH-10:,0:10,:]) > 270:
+            # print(frame[40:50,WIDTH-50:WIDTH-40,:])
+            # print(frame[HEIGHT-50:HEIGHT-40,40:50,:])
+            if np.count_nonzero(frame[50:80,WIDTH-80:WIDTH-50,:] < 5) > 2430 and np.count_nonzero(frame[HEIGHT-80:HEIGHT-50,50:80,:] < 5) > 2430:
                 fisheye_detect = True    
                 print(video_path, "is fisheye")
             if fisheye_detect:
@@ -161,8 +162,8 @@ def hough_line_detect(video_path, output_path, X1, Y1, X2, Y2, fisheye_detect):
             cv2.line(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
             prev_distance = closest_distance
         distances.append(prev_distance)
-        if frame_num >= FRAME:
-            frame_num = 0
+        # if frame_num >= FRAME:
+        #     frame_num = 0
 
         # draw  rectangle
         
@@ -359,7 +360,7 @@ videos = [
     {"video_filename": "03.mp4", "bbox": (0, 0, 957, 407, False)},
     {"video_filename": "05.mp4", "bbox": (0, 0, 957, 407, False)},
     {"video_filename": "07.mp4", "bbox": (0, 0, 959, 445, False)},
-    {"video_filename": "09.mp4", "bbox": (2, 345, 293, 960, True)}
+    {"video_filename": "09.mp4", "bbox": (2, 345, 293, 960, False)}
     # {"video_filename": "02.mov", "bbox": (0, 0, 959, 445, False)}
 
 ]
