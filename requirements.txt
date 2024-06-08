@@ -4,3 +4,4 @@ opencv-contrib-python==4.6.0.66
 tqdm>=4.60.0
 ultralytics
 dill
+matplotlib
