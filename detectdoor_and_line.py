@@ -465,20 +465,30 @@ please fill in the input video path and output video path
 '''
 
 input_videos = ['Tests/01.mp4',
+                'Tests/02.mp4',
                 'Tests/03.mp4',
+                'Tests/04.mp4',
                 'Tests/05.mp4',
+                'Tests/06.mp4',
                 'Tests/07.mp4',
-                'Tests/09.mp4']
+                'Tests/08.mp4',
+                'Tests/09.mp4',
+                'Tests/10.mp4']
 
 variables = door_frame_detect(input_videos, '/output')
 
 # fill in the video filenames and bounding boxes
 videos = [
    {"video_filename": "01.mp4", "bbox": (variables["01_x1"], variables["01_y1"], variables["01_x2"], variables["01_y2"])},
+   {"video_filename": "02.mp4", "bbox": (variables["02_x1"], variables["02_y1"], variables["02_x2"], variables["02_y2"])},
    {"video_filename": "03.mp4", "bbox": (variables["03_x1"], variables["03_y1"], variables["03_x2"], variables["03_y2"])},
+   {"video_filename": "04.mp4", "bbox": (variables["04_x1"], variables["04_y1"], variables["04_x2"], variables["04_y2"])},
    {"video_filename": "05.mp4", "bbox": (variables["05_x1"], variables["05_y1"], variables["05_x2"], variables["05_y2"])},
+   {"video_filename": "06.mp4", "bbox": (variables["06_x1"], variables["06_y1"], variables["06_x2"], variables["06_y2"])},
    {"video_filename": "07.mp4", "bbox": (variables["07_x1"], variables["07_y1"], variables["07_x2"], variables["07_y2"])},
-   {"video_filename": "09.mp4", "bbox": (variables["09_x1"], variables["09_y1"], variables["09_x2"], variables["09_y2"])}
+   {"video_filename": "08.mp4", "bbox": (variables["08_x1"], variables["08_y1"], variables["08_x2"], variables["08_y2"])},
+   {"video_filename": "09.mp4", "bbox": (variables["09_x1"], variables["09_y1"], variables["09_x2"], variables["09_y2"])},
+   {"video_filename": "10.mp4", "bbox": (variables["10_x1"], variables["10_y1"], variables["10_x2"], variables["10_y2"])}
 ]
 
 video_annotations = process_videos(videos)
